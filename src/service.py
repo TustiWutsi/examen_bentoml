@@ -4,6 +4,7 @@ from bentoml.io import NumpyNdarray, JSON
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.exceptions import HTTPException
 import jwt
 from datetime import datetime, timedelta
 
@@ -13,13 +14,13 @@ JWT_ALGORITHM = "HS256"
 
 # User credentials for authentication
 USERS = {
-    "user123": "password123",
+    "arthurbastide": "helloworld",
     "user456": "password456"
 }
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        if request.url.path == "/v1/models/rf_classifier/predict":
+        if request.url.path == "/v1/models/admission_lr/predict":
             token = request.headers.get("Authorization")
             if not token:
                 return JSONResponse(status_code=401, content={"detail": "Missing authentication token"})
@@ -39,25 +40,26 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
 # Pydantic model to validate input data
 class InputModel(BaseModel):
-    GRE Score: float
-    TOEFL Score: float
-    University Rating: float
+    GRE_Score: int
+    TOEFL_Score: int
+    University_Rating: int
     SOP: float
-    LOR : float
+    LOR: float
     CGPA: float
-    Research: float
+    Research: int
 
-# Get the model from the Model Store
-accidents_rf_runner = bentoml.sklearn.get("accidents_rf:latest").to_runner()
+# Get the model and the scaler from the Model Store
+admission_lr_runner = bentoml.sklearn.get("admission_lr:latest").to_runner()
+scaler = bentoml.sklearn.load_model("standard_scaler:latest")
 
 # Create a service API
-rf_service = bentoml.Service("rf_clf_service", runners=[accidents_rf_runner])
+lr_service = bentoml.Service("lr_service", runners=[admission_lr_runner])
 
 # Add the JWTAuthMiddleware to the service
-rf_service.add_asgi_middleware(JWTAuthMiddleware)
+lr_service.add_asgi_middleware(JWTAuthMiddleware)
 
 # Create an API endpoint for the service
-@rf_service.api(input=JSON(), output=JSON())
+@lr_service.api(input=JSON(), output=JSON())
 def login(credentials: dict) -> dict:
     username = credentials.get("username")
     password = credentials.get("password")
@@ -69,25 +71,23 @@ def login(credentials: dict) -> dict:
         return JSONResponse(status_code=401, content={"detail": "Invalid credentials"})
 
 # Create an API endpoint for the service
-@rf_service.api(
+@lr_service.api(
     input=JSON(pydantic_model=InputModel),
     output=JSON(),
-    route='v1/models/rf_classifier/predict'
+    route='v1/models/admission_lr/predict'
 )
 async def classify(input_data: InputModel, ctx: bentoml.Context) -> dict:
     request = ctx.request
     user = request.state.user if hasattr(request.state, 'user') else None
 
     # Convert the input data to a numpy array
-    input_series = np.array([input_data.place, input_data.catu, input_data.sexe, input_data.secu1,
-                             input_data.year_acc, input_data.victim_age, input_data.catv, input_data.obsm,
-                             input_data.motor, input_data.catr, input_data.circ, input_data.surf,
-                             input_data.situ, input_data.vma, input_data.jour, input_data.mois,
-                             input_data.lum, input_data.dep, input_data.com, input_data.agg_,
-                             input_data.int, input_data.atm, input_data.col, input_data.lat,
-                             input_data.long, input_data.hour, input_data.nb_victim, input_data.nb_vehicules])
+    input_series = np.array([input_data.GRE_Score, input_data.TOEFL_Score, input_data.University_Rating, input_data.SOP,
+                             input_data.LOR, input_data.CGPA, input_data.Research]).reshape(1, -1)
 
-    result = await accidents_rf_runner.predict.async_run(input_series.reshape(1, -1))
+    # Apply the scaler
+    input_scaled = scaler.transform(input_series)
+
+    result = await admission_lr_runner.predict.async_run(input_scaled)
 
     return {
         "prediction": result.tolist(),

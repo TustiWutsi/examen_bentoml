@@ -12,9 +12,7 @@ model = LinearRegression()
 model.fit(X_train, y_train)
 model.predict(X_test)
 r2 = model.score(X_test, y_test)
-
 print(f"Model R2 score: {r2}")
 
 model_ref = bentoml.sklearn.save_model("admission_lr", model)
-
 print(f"Modèle enregistré sous : {model_ref}")

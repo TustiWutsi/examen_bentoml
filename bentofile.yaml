@@ -1,0 +1,27 @@
+service: "src.service:lr_service"
+description: "Linear Regression Service for predicting admission score"
+labels:
+  owner: "DataScientest"
+  project: "Admissions Prediction"
+
+docker:
+  dockerfile_template: "./Dockerfile.template"
+  base_image: python:3.8-slim
+
+include:
+  - src/
+  - data/
+
+python:
+  packages:
+    - numpy
+    - pandas
+    - scikit-learn
+    - bentoml
+    - pydantic
+    - requests
+    - pyjwt
+
+models:
+  - "admission_lr:latest"
+  - "standard_scaler:latest"

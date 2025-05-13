@@ -12,16 +12,6 @@ credentials = {
     "password": "helloworld"
 }
 
-wrong_credentials = {
-    "username": "wrong",
-    "password": "wrong"
-}
-
-JWT_SECRET_KEY = "your_jwt_secret_key_here"
-JWT_ALGORITHM = "HS256"
-
-invalid_token = "invalid_token"
-
 # Data to be sent to the prediction endpoint
 data = {
     "GRE_Score": 327,
@@ -33,13 +23,6 @@ data = {
     "Research": 1,
 }
 
-invalid_data = {
-    "GRE_Score": 300,
-    "TOEFL_Score": 100,
-    "University_Rating": 5,
-}
-
-### QUICK TEST
 # Send a POST request to the login endpoint
 login_response = requests.post(
     login_url,
